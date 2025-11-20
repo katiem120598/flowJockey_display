@@ -1,6 +1,6 @@
 // Example adapted from https://p5js.org/reference/#/p5.FFT
 
-let sound, fft, waveform, spectrum, audioContext;
+let sound, fft, mic, waveform, spectrum, audioContext;
 
 let numrows = 0;
 let numcols = 0;
@@ -24,7 +24,24 @@ document.addEventListener("DOMContentLoaded", function () {
   document.body.appendChild(startButton);
 
   startButton.addEventListener("click", function () {
-    startButton.classList.add("hidden"); // Hide the button
+    startButton.classList.add("hidden");
+
+    // Required to unlock microphone permission
+    userStartAudio();
+
+    // Start microphone AFTER user gesture
+    mic.start(() => {
+      console.log("Mic started ✔");
+
+      mic.connect();      // REQUIRED so FFT sees actual signal
+      mic.amp(1.5);       // boost input gain (adjust as needed)
+
+      // Create FFT only AFTER mic is active
+      fft = new p5.FFT(0.4, 1024);
+      fft.setInput(mic);
+    });
+  });
+});
 
 
 /*function preload() {
@@ -33,22 +50,10 @@ document.addEventListener("DOMContentLoaded", function () {
   );
 }*/
 
-userStartAudio();
-
-mic.start(()=>{
-    console.log("mic started");
-    mic.connect();
-    mic.amp(1.5);
-    fft = new p5.FFT(0.4,1024);
-    fft.setInput(mic);
-    });
-  });
-});
-
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
   /*fft = new p5.FFT();*/
-  fft = new p5.audioIn();
+  mic = new p5.audioIn();
 
   //websocket setup
   const serverAddress = "wss://flowjockey-server.onrender.com";
@@ -138,6 +143,7 @@ function setup() {
 }
 
 function draw() {
+
   background(0);
   let spectrum = fft.analyze();
   let waveform = fft.waveform();
