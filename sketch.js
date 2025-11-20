@@ -275,7 +275,7 @@ function draw() {
     for (let party of partydata) {
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
-      if (lowEnergy > (5 * bass) / 100 + 00) {
+      if (lowEnergy > (5 * bass) / 100 + 5) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -286,7 +286,7 @@ function draw() {
         );
         pop();
       }
-      if (midEnergy > (5 * bass) / 100 + 00) {
+      if (midEnergy > (5 * bass) / 100 + 5) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -297,7 +297,7 @@ function draw() {
         );
         pop();
       }
-      if (highEnergy > (5 * bass) / 100 + 00) {
+      if (highEnergy > (5 * bass) / 100 + 5) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -312,15 +312,15 @@ function draw() {
 
       for (let pt of party.shapes) {
         // Apply scaled movement
-        if (lowEnergy > 5) {
+        if (lowEnergy > 10) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
         }
-        if (lowEnergy > 5) {
+        if (lowEnergy > 10) {
           pt.x += party.xdir * midScale;
           pt.y += party.ydir * midScale;
         }
-        if (lowEnergy > 5) {
+        if (lowEnergy > 10) {
           pt.x += party.xdir * trebleScale;
           pt.y += party.ydir * trebleScale;
         }
