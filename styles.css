@@ -1,0 +1,264 @@
+/* Makes the canvas stick to (0, 0) */
+/* html, body {
+    margin: 0;
+    padding: 0;
+} */
+
+
+/* Makes the canvas centered on the page */
+canvas {
+  padding: 0;
+  margin: auto;
+  display: block;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+.fullcontainer {
+  width: 100%;
+  height: auto;
+  margin: 0;
+  background-color: #ffffff; /* Change this to your desired background color */
+  /* Add any other styles or content you want for your container */
+  display: flex;
+  flex-direction: column;
+}
+.pinkcontainer {
+  margin: 0;
+  padding: 0;
+  width:100%;
+  height:100vh;
+  background-color:#000000;
+  /*background: linear-gradient(45deg, #ffa7e9, #b5d1ff);*/
+  display: flex;
+}
+.horizontal-left{
+  display: inline-block;
+  text-align: left;
+}
+.blockdisp{
+  display:flex;
+  flex-direction: column;
+  width: max-content;
+}
+
+
+.navbar-contents {
+  position: absolute;
+  text-align: right;
+  top: 100px;
+  right: 100px; /* Adjusts the navbar to hug the right side */
+  z-index: 1000; /* Ensures it's above the canvas */
+}
+
+/* Additional styling for the navbar to make it visually fitting */
+.navbar-contents .dropdown-button {
+  cursor: pointer;
+  background-color: #eee; /* Example color */
+  border: none;
+  width: fit-content;
+  width: 80px;
+  height: 60px;
+  padding: 10px;
+}
+
+.navbar-contents .navlist {
+  display: none; /* Hidden by default, shown on button click */
+  list-style-type: none;
+  text-align: left;
+  padding: 10;
+  margin: 10;
+  background-color: #f9f9f9; /* Example color */
+  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+}
+
+.navlist{
+  width: fit-content;
+  padding: 10px;
+}
+
+.navbar-contents .navlist li a {
+  right: 0;
+  text-align: left;
+  display: block;
+  color: black;
+  padding: 10px;
+  text-decoration: none;
+}
+
+/* Hover effects */
+.navbar-contents .navlist li a:hover {
+  background-color: #ddd;
+}
+
+.dropdown-button .fa {
+  font-size: 24px; /* Adjust the size as needed */
+  color: #333; /* Adjust the color as needed */
+}
+@font-face {
+  font-family: 'girlypop';
+  src: url(../fonts/CherryBombOne-Regular.ttf)
+}
+.girly-text {
+  font-family: 'girlypop';
+  color: #000000;
+  font-size: 3.5rem;
+  z-index: 100;
+  position: relative
+}
+
+.random-image {
+  position: absolute;
+  max-width: 65px;
+  min-width: 40px;
+  top: var(--random-top) ;
+  left: var(--random-left);
+  z-index: 0;
+  /* Above the background but below the text */
+  animation: sparkle-animation 20s ease-in-out infinite;
+}
+@keyframes sparkle-animation {
+  0% {
+      transform: scale(var(--random-scale1)) translate(0px,0px) rotate(var(--randrot1));
+  }
+
+  25% {
+      transform: translate(var(--randx1),var(--randy1));
+  }
+
+  50% {
+      transform: scale(var(--random-scale2)) translate(var(--randx2),var(--randy2)) rotate(var(--randrot2));
+  }
+
+  75% {
+      transform: translate(var(--randx3),var(--randy3));
+  }
+
+  100% {
+      transform: scale(var(--random-scale1)) translate(0px,0px) rotate(var(--randrot1));
+  }
+}
+
+.text-over-image {
+  position: relative;
+  height: 82.35px;
+  text-align: center;
+  display: inline-block; /* Change display to inline-block to avoid centering */
+  border: 10px solid transparent; /* Add a 10px border */
+}
+
+#logo-text{
+  font-size: 15px;
+  font-weight: 500;
+  color: #000;
+}
+
+.navbar-contentsog{
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.centered-text{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  font-size: 24px;
+}
+p,body{
+  font-size: 15px;
+  font-weight: 400;
+  font-family: Work Sans, sans-serif;
+  margin: 0;
+}
+.whitetext{
+  font-style:oblique;
+  color:white;
+  font-size:36px;
+}
+.footer{
+  font-style:oblique;
+  color:#ddd;
+  font-size:36px;
+  display:block;
+  position:absolute;
+  top:95%;
+  left:50%;
+  transform: translate(-50%, -94%);
+  font-size:15px;
+  text-align:center;
+}
+button{
+  font-size: 15px;
+  font-weight: 500;
+  font-family: Work Sans, sans-serif;
+  margin: 0;
+}
+h1{
+  font-size: 30px;
+  font-family: Work Sans, sans-serif;
+  font-weight: 1000;
+}
+h2{
+  font-size: 18px;
+  font-family: Work Sans, sans-serif;
+  font-weight: 400;
+  margin-top:10px;
+  margin-bottom:10px;
+}
+navbarog {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 101;
+  width: 100%;
+  height: auto;
+  box-sizing: border-box;
+  padding-left: 50px;
+  padding-right: 50px;
+  padding-top:10px;
+  padding-bottom:10px;
+}
+
+#startButton {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 40px;
+  font-size: 24px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  z-index: 1000; /* Ensures the button is above everything else */
+}
+
+#startButton.hidden {
+  display: none;
+}
+
+#startDraw {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 40px;
+  font-size: 24px;
+  background-color: #333;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  z-index: 1000; /* Ensures the button is above everything else */
+}
+
+#startDraw.hidden {
+  display: none;
+}
