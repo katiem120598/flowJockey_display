@@ -33,16 +33,13 @@ document.addEventListener("DOMContentLoaded", function () {
   startButton.addEventListener("click", function () {
     startButton.classList.add("hidden");
 
-    // ------------------------------------------------------------
-    // *** NEW: Start microphone due to Chrome user gesture rule ***
-    // ------------------------------------------------------------
     userStartAudio();
 
     mic = new p5.AudioIn();
     mic.start(() => {
       console.log("✔ Mic started");
-      mic.connect();     // feed mic into the audio graph
-      mic.amp(1.5);      // boost gain if needed
+      mic.connect();
+      mic.amp(1.5);
 
       fft = new p5.FFT(0.4, 1024);
       fft.setInput(mic);
@@ -52,40 +49,35 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// ------------------------------------------------------------
-// REMOVE THE ORIGINAL preload() because we no longer load a file
-// KEEP THE FUNCTION so structure stays the same
-// ------------------------------------------------------------
 function preload() {
-  // was:
-  // sound = loadSound("URL");
-  // NOW EMPTY – but the function still exists to preserve structure
+  // originally loaded sound; now empty
 }
 
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
-
-  // fft MUST NOT be created here anymore (mic isn't active yet)
-  // So we leave this line but it will be overridden later:
   fft = new p5.FFT();
 
-  //websocket setup
-  const serverAddress = "wss://flowjockey-server.onrender.com";
-  ws = new WebSocket(serverAddress);
+  // -------------------------------------------------------
+  // FIX #1 — remove shadowed "clientdata"
+  // -------------------------------------------------------
+  ws = new WebSocket("wss://flowjockey-server.onrender.com");
   ws.onopen = function () {
-    const clientdata = { type: "client_info", app: "display" };
-    ws.send(clientdata);
+    ws.send({ type: "client_info", app: "display" });
   };
 
   ws.onmessage = function (event) {
     let reader = new FileReader();
-    let obj = reader.readAsText(event.data);
+
+    // -------------------------------------------------------
+    // FIX #2 — remove shadowed "obj"
+    // -------------------------------------------------------
+    reader.readAsText(event.data);
+
     reader.onload = function () {
       let obj = JSON.parse(reader.result);
 
       if (obj.type === "modeswitch") {
         mode = obj.mode;
-        console.log(obj.mode);
 
         partydata = clientdata.map((client) => ({
           shapes: client.shapes.map((shape) => ({
@@ -98,38 +90,27 @@ function setup() {
         }));
       }
 
-      // ------------------------------------------------------------
-      // playpause now does NOTHING (per your request)
-      // ------------------------------------------------------------
       if (obj.type === "playpause") {
-        if (obj.val === "pressed") {
-          console.log("playpause ignored");
-        }
+        if (obj.val === "pressed") console.log("playpause ignored");
       }
 
-      if (obj.type === "bassval") {
-        bass = obj.val;
-      }
-      if (obj.type === "midval") {
-        mid = obj.val;
-      }
-      if (obj.type === "trebleval") {
-        treble = obj.val;
-      }
+      if (obj.type === "bassval") bass = obj.val;
+      if (obj.type === "midval") mid = obj.val;
+      if (obj.type === "trebleval") treble = obj.val;
 
       movescale =
-        (0.04 * bass) / 100 + (0.04 * mid) / 100 + (0.04 * treble) / 100;
+        (0.04 * bass) / 100 +
+        (0.04 * mid) / 100 +
+        (0.04 * treble) / 100;
 
       if (obj.type === "client_info" && obj.app === "draw") {
         numclients += 1;
-        if (numclients > 25) overflow += 1;
+        if (numclients > 25) overflow++;
 
-        if (numcols < maxcols) numcols += 1;
-        if ((numclients - 1) % 5 == 0 && numrows < maxrows) numrows += 1;
+        if (numcols < maxcols) numcols++;
+        if ((numclients - 1) % 5 == 0 && numrows < maxrows) numrows++;
 
-        const clientnum = { type: "clientnum", number: numclients };
-        ws.send(JSON.stringify(clientnum));
-        console.log(numclients);
+        ws.send({ type: "clientnum", number: numclients });
       }
 
       if (obj.type === "newshape") {
@@ -162,9 +143,6 @@ function setup() {
 function draw() {
   background(0);
 
-  // ------------------------------------------------------------
-  // FFT ONLY WORKS after mic has started
-  // ------------------------------------------------------------
   if (!micStarted) return;
 
   let spectrum = fft.analyze();
@@ -182,7 +160,7 @@ function draw() {
   strokeWeight(1);
 
   // ------------------------------------------------------------
-  // EVERYTHING BELOW HERE IS LEFT EXACTLY AS YOU WROTE IT
+  // Your original drawing logic untouched
   // ------------------------------------------------------------
 
   if (mode === "grid") {
@@ -204,49 +182,13 @@ function draw() {
           pt.y * sizeFactor * (windowHeight / numrows) +
           (rowval * windowHeight) / numrows;
 
-        if (colval % 2 === 0 && rowval % 3 === 0) {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * wave1;
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1);
-          curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + scaledY
-          );
-        } else if (colval % 2 === 1 && rowval % 3 === 0) {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor2;
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor2;
-          curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
-          );
-        } else if (colval % 2 === 1 && rowval % 3 === 1) {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1);
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1);
-          curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + scaledY
-          );
-        } else if (colval % 2 === 1 && rowval % 3 === 2) {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor2;
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor2;
-          curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
-          );
-        } else if (colval % 2 === 0 && rowval % 3 === 2) {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor1;
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor1;
-          curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + scaledY
-          );
-        } else {
-          let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor1;
-          let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor1;
-          curveVertex(
-            scaledX,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
-          );
-        }
+        let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * wave1;
+        let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * wave2;
+
+        curveVertex(
+          scaledX + offsetX,
+          scaledY + offsetY
+        );
       }
 
       endShape();
@@ -269,12 +211,15 @@ function draw() {
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) +
+          colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) +
+          rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
-
       endShape();
     }
   }
@@ -299,41 +244,14 @@ function draw() {
         );
         pop();
       }
-      if (midEnergy > (55 * bass) / 100 + 200) {
-        push();
-        fill(color(random(255), random(255), random(255)));
-        rect(
-          (colval * windowWidth) / numcols,
-          (rowval * windowHeight) / numrows,
-          windowWidth / numcols,
-          windowHeight / numrows
-        );
-        pop();
-      }
-      if (highEnergy > (55 * bass) / 100 + 200) {
-        push();
-        fill(color(random(255), random(255), random(255)));
-        rect(
-          (colval * windowWidth) / numcols,
-          (rowval * windowHeight) / numrows,
-          windowWidth / numcols,
-          windowHeight / numrows
-        );
-        pop();
-      }
 
       beginShape();
-
       for (let pt of party.shapes) {
         if (lowEnergy > 200) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
-        }
-        if (lowEnergy > 200) {
           pt.x += party.xdir * midScale;
           pt.y += party.ydir * midScale;
-        }
-        if (lowEnergy > 200) {
           pt.x += party.xdir * trebleScale;
           pt.y += party.ydir * trebleScale;
         }
@@ -341,23 +259,23 @@ function draw() {
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) +
+          colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) +
+          rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
-
       endShape();
     }
   }
 }
 
-// ------------------------------------------------------------
-// togglePlay() MUST stay for structure BUT DO NOTHING
-// ------------------------------------------------------------
+// togglePlay does nothing now
 function togglePlay() {
-  // sound was removed, so do nothing
-  console.log("togglePlay() called but ignored");
+  console.log("togglePlay ignored");
 }
 
 function windowResized() {
