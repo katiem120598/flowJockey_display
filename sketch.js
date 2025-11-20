@@ -1,13 +1,8 @@
 // Example adapted from https://p5js.org/reference/#/p5.FFT
 
 let sound, fft, waveform, spectrum, audioContext;
-
-// ------------------------------------------------------------------
-// NEW MIC VARIABLES
-// ------------------------------------------------------------------
-let mic;     // microphone (replaces sound)
-let micStarted = false;  // flag so FFT only starts after user gesture
-// ------------------------------------------------------------------
+let mic;
+let micStarted = false;
 
 let numrows = 0;
 let numcols = 0;
@@ -52,21 +47,14 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-// ------------------------------------------------------------
-// REMOVE THE ORIGINAL preload() because we no longer load a file
-// KEEP THE FUNCTION so structure stays the same
-// ------------------------------------------------------------
-function preload() {
-  // was:
-  // sound = loadSound("URL");
-  // NOW EMPTY – but the function still exists to preserve structure
-}
+/*function preload() {
+  sound = loadSound(
+    "https://cdn.glitch.me/a32338f3-5980-41ad-b4b3-76e5515233d6/02%20-%20757%20%5BExplicit%5D.wav?v=1714651726001"
+  );
+}*/
 
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
-
-  // fft MUST NOT be created here anymore (mic isn't active yet)
-  // So we leave this line but it will be overridden later:
   fft = new p5.FFT();
 
   //websocket setup
@@ -82,11 +70,10 @@ function setup() {
     let obj = reader.readAsText(event.data);
     reader.onload = function () {
       let obj = JSON.parse(reader.result);
-
       if (obj.type === "modeswitch") {
         mode = obj.mode;
         console.log(obj.mode);
-
+        // Copy and reset positions for party mode
         partydata = clientdata.map((client) => ({
           shapes: client.shapes.map((shape) => ({
             x: shape.x,
@@ -97,16 +84,12 @@ function setup() {
           ydir: (random() - 0.5) / 0.5,
         }));
       }
-
-      // ------------------------------------------------------------
-      // playpause now does NOTHING (per your request)
-      // ------------------------------------------------------------
       if (obj.type === "playpause") {
-        if (obj.val === "pressed") {
-          console.log("playpause ignored");
+        if(obj.val==='pressed'){
+          console.log(obj.val);
+          togglePlay();
         }
       }
-
       if (obj.type === "bassval") {
         bass = obj.val;
       }
@@ -116,22 +99,25 @@ function setup() {
       if (obj.type === "trebleval") {
         treble = obj.val;
       }
-
       movescale =
         (0.04 * bass) / 100 + (0.04 * mid) / 100 + (0.04 * treble) / 100;
-
       if (obj.type === "client_info" && obj.app === "draw") {
         numclients += 1;
-        if (numclients > 25) overflow += 1;
+        if (numclients > 25) {
+          overflow += 1;
+        }
 
-        if (numcols < maxcols) numcols += 1;
-        if ((numclients - 1) % 5 == 0 && numrows < maxrows) numrows += 1;
+        if (numcols < maxcols) {
+          numcols += 1;
+        }
+        if ((numclients - 1) % 5 == 0 && numrows < maxrows) {
+          numrows += 1;
+        }
 
         const clientnum = { type: "clientnum", number: numclients };
         ws.send(JSON.stringify(clientnum));
         console.log(numclients);
       }
-
       if (obj.type === "newshape") {
         let xdir = (random() - 0.5) / 0.5;
         let ydir = (random() - 0.5) / 0.5;
@@ -143,7 +129,6 @@ function setup() {
           ydir: ydir,
           col: color(random(255), random(255), random(255)),
         });
-
         partydata = clientdata.map((client) => ({
           shapes: client.shapes.map((shape) => ({
             x: shape.x,
@@ -161,36 +146,25 @@ function setup() {
 
 function draw() {
   background(0);
-
-  // ------------------------------------------------------------
-  // FFT ONLY WORKS after mic has started
-  // ------------------------------------------------------------
   if (!micStarted) return;
-
   let spectrum = fft.analyze();
   let waveform = fft.waveform();
   let lowEnergy = fft.getEnergy("bass");
   let midEnergy = fft.getEnergy("mid");
   let highEnergy = fft.getEnergy("treble");
 
-  let sizeFactor = map(fft.getEnergy("bass"), 0, 255, 0.9, 2.2 * bass / 100);
-  let noiseFactor1 = map(midEnergy, 0, 765, 5, 60 * mid / 100);
-  let noiseFactor2 = map(highEnergy, 0, 765, 5, 120 * mid / 100);
-
+  let sizeFactor = map(fft.getEnergy("bass"), 0, 255, 0.9, 2.2*bass/100); // Example: scale size based on bass energy
+  let noiseFactor1 = map(midEnergy, 0, 765, 5, 60*mid/100);
+  let noiseFactor2 = map(highEnergy, 0, 765, 5, 120*mid/100);
   stroke(255);
   fill(0, 0, 0, 0);
   strokeWeight(1);
-
-  // ------------------------------------------------------------
-  // EVERYTHING BELOW HERE IS LEFT EXACTLY AS YOU WROTE IT
-  // ------------------------------------------------------------
-
   if (mode === "grid") {
     for (let client of clientdata) {
       beginShape();
       const colval = (client.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((client.clientnum - overflow - 1) / maxrows);
-
+      //console.log(client.clientnum)
       for (let pt of client.shapes) {
         let angle1 = frameCount * 0.02 + pt.x * 0.1;
         let angle2 = frameCount * 0.03 + pt.x * 0.05;
@@ -203,40 +177,53 @@ function draw() {
         let scaledY =
           pt.y * sizeFactor * (windowHeight / numrows) +
           (rowval * windowHeight) / numrows;
-
         if (colval % 2 === 0 && rowval % 3 === 0) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * wave1;
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1);
           curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
+            offsetX +
+              pt.x * (windowWidth / numcols) +
+              (colval * windowWidth) / numcols,
             offsetY + scaledY
           );
         } else if (colval % 2 === 1 && rowval % 3 === 0) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor2;
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor2;
           curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
+            offsetX +
+              pt.x * (windowWidth / numcols) +
+              (colval * windowWidth) / numcols,
+            offsetY +
+              pt.y * (windowHeight / numrows) +
+              (rowval * windowHeight) / numrows
           );
         } else if (colval % 2 === 1 && rowval % 3 === 1) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1);
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1);
           curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
+            offsetX +
+              pt.x * (windowWidth / numcols) +
+              (colval * windowWidth) / numcols,
             offsetY + scaledY
           );
         } else if (colval % 2 === 1 && rowval % 3 === 2) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor2;
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor2;
           curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
+            offsetX +
+              pt.x * (windowWidth / numcols) +
+              (colval * windowWidth) / numcols,
+            offsetY +
+              pt.y * (windowHeight / numrows) +
+              (rowval * windowHeight) / numrows
           );
         } else if (colval % 2 === 0 && rowval % 3 === 2) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * noiseFactor1;
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor1;
           curveVertex(
-            offsetX + pt.x * (windowWidth / numcols) + (colval * windowWidth) / numcols,
+            offsetX +
+              pt.x * (windowWidth / numcols) +
+              (colval * windowWidth) / numcols,
             offsetY + scaledY
           );
         } else {
@@ -244,50 +231,50 @@ function draw() {
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1) * noiseFactor1;
           curveVertex(
             scaledX,
-            offsetY + pt.y * (windowHeight / numrows) + (rowval * windowHeight) / numrows
+            offsetY +
+              pt.y * (windowHeight / numrows) +
+              (rowval * windowHeight) / numrows
           );
         }
       }
-
       endShape();
     }
   }
-
   if (mode === "party") {
-    let moveScale = map(lowEnergy, 0, 255, 0.01, movescale);
+    let moveScale = map(lowEnergy, 0, 255, 0.01, movescale); // Dynamic movement scale based on bass energy
     for (let party of partydata) {
       beginShape();
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
 
       for (let pt of party.shapes) {
+        // Apply scaled movement
         if (lowEnergy > 225) {
           pt.x += party.xdir * moveScale;
           pt.y += party.ydir * moveScale;
         }
 
+        // Boundary checks
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
-
       endShape();
     }
   }
-
   if (mode === "color") {
     let bassScale = map((lowEnergy * bass) / 100, 0, 255, 0.01, 0.04);
     let midScale = map((midEnergy * mid) / 100, 0, 255, 0.01, 0.04);
-    let trebleScale = map((highEnergy * treble) / 100, 0, 255, 0.01, 0.04);
-
+    let trebleScale = map((highEnergy * treble) / 100, 0, 255, 0.01, 0.04); // Dynamic movement scale based on bass energy
     for (let party of partydata) {
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
-
       if (lowEnergy > (55 * bass) / 100 + 200) {
         push();
         fill(color(random(255), random(255), random(255)));
@@ -321,10 +308,10 @@ function draw() {
         );
         pop();
       }
-
       beginShape();
 
       for (let pt of party.shapes) {
+        // Apply scaled movement
         if (lowEnergy > 200) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
@@ -338,27 +325,70 @@ function draw() {
           pt.y += party.ydir * trebleScale;
         }
 
+        // Boundary checks
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
-
       endShape();
     }
   }
 }
 
-// ------------------------------------------------------------
-// togglePlay() MUST stay for structure BUT DO NOTHING
-// ------------------------------------------------------------
-function togglePlay() {
-  // sound was removed, so do nothing
-  console.log("togglePlay() called but ignored");
+/*function togglePlay() {
+  if (sound.isPlaying()) {
+    sound.pause();
+  } else {
+    sound.loop();
+  }
+}*/
+
+/*
+function keyPressed() {
+  if (key === "1") {
+    if (mode === "grid" || mode === "color") {
+      mode = "party";
+      // Copy and reset positions for party mode
+      partydata = clientdata.map((client) => ({
+        shapes: client.shapes.map((shape) => ({
+          x: shape.x,
+          y: shape.y,
+        })),
+        clientnum: client.clientnum,
+        xdir: (random() - 0.5) / 0.5,
+        ydir: (random() - 0.5) / 0.5,
+      }));
+    } else {
+      mode = "grid";
+    }
+    console.log("Mode switched to:", mode);
+  }
+  if (key === "2") {
+    if (mode === "grid" || mode === "party") {
+      mode = "color";
+      // Copy and reset positions for party mode
+      partydata = clientdata.map((client) => ({
+        shapes: client.shapes.map((shape) => ({
+          x: shape.x,
+          y: shape.y,
+        })),
+        clientnum: client.clientnum,
+        xdir: (random() - 0.5) / 0.5,
+        ydir: (random() - 0.5) / 0.5,
+      }));
+    } else {
+      mode = "grid";
+    }
+    console.log("Mode switched to:", mode);
+  }
 }
+*/
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
