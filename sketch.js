@@ -249,7 +249,7 @@ function draw() {
 
       for (let pt of party.shapes) {
         // Apply scaled movement
-        if (lowEnergy > 50) {
+        if (lowEnergy > 5) {
           pt.x += party.xdir * moveScale;
           pt.y += party.ydir * moveScale;
         }
