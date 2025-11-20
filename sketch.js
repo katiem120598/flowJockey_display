@@ -275,7 +275,7 @@ function draw() {
     for (let party of partydata) {
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
-      if (lowEnergy > (55 * bass) / 100 + 200) {
+      if (lowEnergy > (5 * bass) / 100 + 200) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -286,7 +286,7 @@ function draw() {
         );
         pop();
       }
-      if (midEnergy > (55 * bass) / 100 + 200) {
+      if (midEnergy > (5 * bass) / 100 + 200) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -297,7 +297,7 @@ function draw() {
         );
         pop();
       }
-      if (highEnergy > (55 * bass) / 100 + 200) {
+      if (highEnergy > (5 * bass) / 100 + 200) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
