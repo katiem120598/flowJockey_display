@@ -1,6 +1,8 @@
-let fft, waveform, spectrum, audioContext;
-let mic;  
+/////////////////////////////////////////////////////////////
+//  FLOWJOCKEY — MICROPHONE REACTIVE VERSION (FULL FILE)
+/////////////////////////////////////////////////////////////
 
+let fft, mic;
 let numrows = 0;
 let numcols = 0;
 let numclients = 0;
@@ -16,7 +18,9 @@ let bass = 50;
 let mid = 50;
 let treble = 50;
 
-// Add the button for "Begin Display"
+// ---------------------------------------------------------
+// Start Button (required so Chrome allows audio input)
+// ---------------------------------------------------------
 document.addEventListener("DOMContentLoaded", function () {
   const startButton = document.createElement("button");
   startButton.id = "startButton";
@@ -26,26 +30,37 @@ document.addEventListener("DOMContentLoaded", function () {
   startButton.addEventListener("click", function () {
     startButton.classList.add("hidden");
 
-    // REQUIRED for audio on browsers
+    // Required to unlock microphone permission
     userStartAudio();
 
-    // Start microphone
+    // Start microphone AFTER user gesture
     mic.start(() => {
       console.log("Mic started ✔");
+
+      mic.connect();      // REQUIRED so FFT sees actual signal
+      mic.amp(1.5);       // boost input gain (adjust as needed)
+
+      // Create FFT only AFTER mic is active
+      fft = new p5.FFT(0.4, 1024);
       fft.setInput(mic);
     });
   });
 });
 
+
+// ---------------------------------------------------------
+// Setup
+// ---------------------------------------------------------
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  // Create mic + fft
+  // Create microphone object (but DO NOT start here)
   mic = new p5.AudioIn();
-  fft = new p5.FFT();
+
+  // (IMPORTANT) Do NOT create FFT here — it must be created in mic.start()
 
   // WebSocket setup
-  const serverAddress = "wss://flowjockey-server.onrender.com";  // ← your new server URL
+  const serverAddress = "wss://flowjockey-server.onrender.com";
   ws = new WebSocket(serverAddress);
 
   ws.onopen = function () {
@@ -66,12 +81,13 @@ function setup() {
         return;
       }
 
-      // --- Incoming messages ---
+      //-------------------------
+      // Mode Switch
+      //-------------------------
       if (obj.type === "modeswitch") {
         mode = obj.mode;
         console.log("Mode:", mode);
 
-        // Reset partydata after switch
         partydata = clientdata.map((client) => ({
           shapes: client.shapes.map((s) => ({ x: s.x, y: s.y })),
           clientnum: client.clientnum,
@@ -80,6 +96,9 @@ function setup() {
         }));
       }
 
+      //-------------------------
+      // EQ Sliders
+      //-------------------------
       if (obj.type === "bassval") bass = obj.val;
       if (obj.type === "midval") mid = obj.val;
       if (obj.type === "trebleval") treble = obj.val;
@@ -87,17 +106,23 @@ function setup() {
       movescale =
         (0.04 * bass) / 100 + (0.04 * mid) / 100 + (0.04 * treble) / 100;
 
+      //-------------------------
+      // New Client Joined
+      //-------------------------
       if (obj.type === "client_info" && obj.app === "draw") {
         numclients += 1;
         if (numclients > 25) overflow += 1;
 
         if (numcols < maxcols) numcols += 1;
-        if ((numclients - 1) % 5 == 0 && numrows < maxrows) numrows += 1;
+        if ((numclients - 1) % 5 === 0 && numrows < maxrows) numrows += 1;
 
         const reply = { type: "clientnum", number: numclients };
         ws.send(JSON.stringify(reply));
       }
 
+      //-------------------------
+      // New Shape Drawn
+      //-------------------------
       if (obj.type === "newshape") {
         clientdata.push({
           shapes: obj.points,
@@ -118,16 +143,21 @@ function setup() {
   };
 }
 
+
+// ---------------------------------------------------------
+// DRAW LOOP (visuals)
+// ---------------------------------------------------------
 function draw() {
   background(0);
 
+  if (!fft) return; // microphone not started yet
+
   let spectrum = fft.analyze();
-  let waveform = fft.waveform();
-  let lowEnergy = fft.getEnergy("bass");
-  let midEnergy = fft.getEnergy("mid");
+  let lowEnergy  = fft.getEnergy("bass");
+  let midEnergy  = fft.getEnergy("mid");
   let highEnergy = fft.getEnergy("treble");
 
-  let sizeFactor = map(lowEnergy, 0, 255, 0.9, 2.2 * bass / 100);
+  let sizeFactor   = map(lowEnergy, 0, 255, 0.9, 2.2 * bass / 100);
   let noiseFactor1 = map(midEnergy, 0, 765, 5, 60 * mid / 100);
   let noiseFactor2 = map(highEnergy, 0, 765, 5, 120 * treble / 100);
 
@@ -135,54 +165,62 @@ function draw() {
   noFill();
   strokeWeight(1);
 
-  if (mode === "grid") {
-    drawGridMode(lowEnergy, midEnergy, highEnergy, sizeFactor, noiseFactor1, noiseFactor2);
-  }
-
-  if (mode === "party") {
-    drawPartyMode(lowEnergy);
-  }
-
-  if (mode === "color") {
-    drawColorMode(lowEnergy, midEnergy, highEnergy);
-  }
+  if (mode === "grid")  drawGridMode(lowEnergy, midEnergy, highEnergy, sizeFactor, noiseFactor1, noiseFactor2);
+  if (mode === "party") drawPartyMode(lowEnergy);
+  if (mode === "color") drawColorMode(lowEnergy, midEnergy, highEnergy);
 }
 
+
+// ---------------------------------------------------------
+//  GRID MODE
+// ---------------------------------------------------------
 function drawGridMode(lowEnergy, midEnergy, highEnergy, sizeFactor, noiseFactor1, noiseFactor2) {
+
   for (let client of clientdata) {
     beginShape();
+
     const colval = (client.clientnum - overflow - 1) % maxcols;
     const rowval = Math.floor((client.clientnum - overflow - 1) / maxrows);
 
     for (let pt of client.shapes) {
       let angle1 = frameCount * 0.02 + pt.x * 0.1;
       let angle2 = frameCount * 0.03 + pt.x * 0.05;
+
       let wave1 = noiseFactor1 * sin(angle1);
       let wave2 = noiseFactor2 * sin(angle2);
 
-      let scaledX = pt.x * sizeFactor * (windowWidth / numcols) + (colval * windowWidth) / numcols;
-      let scaledY = pt.y * sizeFactor * (windowHeight / numrows) + (rowval * windowHeight) / numrows;
+      let scaledX =
+        pt.x * sizeFactor * (windowWidth / numcols) +
+        (colval * windowWidth) / numcols;
+
+      let scaledY =
+        pt.y * sizeFactor * (windowHeight / numrows) +
+        (rowval * windowHeight) / numrows;
 
       let offset = noise(pt.x, pt.y, frameCount * 0.1);
 
-      curveVertex(
-        scaledX + offset * wave1,
-        scaledY + offset * wave2
-      );
+      curveVertex(scaledX + offset * wave1, scaledY + offset * wave2);
     }
+
     endShape();
   }
 }
 
+
+// ---------------------------------------------------------
+//  PARTY MODE
+// ---------------------------------------------------------
 function drawPartyMode(lowEnergy) {
   let moveScale = map(lowEnergy, 0, 255, 0.01, movescale);
 
   for (let party of partydata) {
     beginShape();
+
     const colval = (party.clientnum - overflow - 1) % maxcols;
     const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
 
     for (let pt of party.shapes) {
+
       if (lowEnergy > 225) {
         pt.x += party.xdir * moveScale;
         pt.y += party.ydir * moveScale;
@@ -196,14 +234,20 @@ function drawPartyMode(lowEnergy) {
 
       curveVertex(finalX, finalY);
     }
+
     endShape();
   }
 }
 
+
+// ---------------------------------------------------------
+//  COLOR MODE
+// ---------------------------------------------------------
 function drawColorMode(lowEnergy, midEnergy, highEnergy) {
-  let bassScale = map(lowEnergy * bass / 100, 0, 255, 0.01, 0.04);
-  let midScale = map(midEnergy * mid / 100, 0, 255, 0.01, 0.04);
-  let trebleScale = map(highEnergy * treble / 100, 0, 255, 0.01, 0.04);
+
+  let bassScale   = map(lowEnergy * bass / 100, 0, 255, 0.01, 0.04);
+  let midScale    = map(midEnergy * mid    / 100, 0, 255, 0.01, 0.04);
+  let trebleScale = map(highEnergy * treble/ 100, 0, 255, 0.01, 0.04);
 
   for (let party of partydata) {
     const colval = (party.clientnum - overflow - 1) % maxcols;
@@ -211,12 +255,18 @@ function drawColorMode(lowEnergy, midEnergy, highEnergy) {
 
     if (lowEnergy > (55 * bass) / 100 + 200) {
       fill(color(random(255), random(255), random(255)));
-      rect((colval * windowWidth) / numcols, (rowval * windowHeight) / numrows, windowWidth / numcols, windowHeight / numrows);
+      rect(
+        (colval * windowWidth) / numcols,
+        (rowval * windowHeight) / numrows,
+        windowWidth / numcols,
+        windowHeight / numrows
+      );
       noFill();
     }
 
     beginShape();
     for (let pt of party.shapes) {
+
       if (lowEnergy > 200) {
         pt.x += party.xdir * bassScale;
         pt.y += party.ydir * bassScale;
@@ -238,6 +288,10 @@ function drawColorMode(lowEnergy, midEnergy, highEnergy) {
   }
 }
 
+
+// ---------------------------------------------------------
+// Resize
+// ---------------------------------------------------------
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
 }
