@@ -312,15 +312,15 @@ function draw() {
 
       for (let pt of party.shapes) {
         // Apply scaled movement
-        if (lowEnergy > 200) {
+        if (lowEnergy > 5) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
         }
-        if (lowEnergy > 200) {
+        if (lowEnergy > 5) {
           pt.x += party.xdir * midScale;
           pt.y += party.ydir * midScale;
         }
-        if (lowEnergy > 200) {
+        if (lowEnergy > 5) {
           pt.x += party.xdir * trebleScale;
           pt.y += party.ydir * trebleScale;
         }
