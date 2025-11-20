@@ -39,7 +39,7 @@ function setup() {
   fft = new p5.FFT();
 
   //websocket setup
-  const serverAddress = "wss://serverfortwo.glitch.me/";
+  const serverAddress = "wss://flowjockey-server.onrender.com";
   ws = new WebSocket(serverAddress);
   ws.onopen = function () {
     const clientdata = { type: "client_info", app: "display" };
