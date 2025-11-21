@@ -99,8 +99,17 @@ function setup() {
       if (obj.type === "trebleval") {
         treble = obj.val;
       }
+      if (obj.type === "lowthreshval") {
+        lowthresh = obj.val;
+      }
+      if (obj.type === "midthreshval") {
+        midthresh = obj.val;
+      }
+      if (obj.type === "highthreshval") {
+        highthresh = obj.val;
+      }
       movescale =
-        (0.04 * bass) / 100 + (0.04 * mid) / 100 + (0.04 * treble) / 100;
+        (0.04 * bass)+ (0.04 * mid) + (0.04 * treble);
       if (obj.type === "client_info" && obj.app === "draw") {
         numclients += 1;
         if (numclients > 25) {
@@ -249,7 +258,7 @@ function draw() {
 
       for (let pt of party.shapes) {
         // Apply scaled movement
-        if (lowEnergy > 5) {
+        if (lowEnergy > lowthresh) {
           pt.x += party.xdir * moveScale;
           pt.y += party.ydir * moveScale;
         }
@@ -275,7 +284,7 @@ function draw() {
     for (let party of partydata) {
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
-      if (lowEnergy > (5 * bass) / 100 + 5) {
+      if (lowEnergy > lowthresh) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -286,7 +295,7 @@ function draw() {
         );
         pop();
       }
-      if (midEnergy > (5 * bass) / 100 + 5) {
+      if (midEnergy > midthresh) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -297,7 +306,7 @@ function draw() {
         );
         pop();
       }
-      if (highEnergy > (5 * bass) / 100 + 5) {
+      if (highEnergy > highthresh) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -312,15 +321,15 @@ function draw() {
 
       for (let pt of party.shapes) {
         // Apply scaled movement
-        if (lowEnergy > 10) {
+        if (lowEnergy > lowthresh) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
         }
-        if (lowEnergy > 10) {
+        if (lowEnergy > midthresh) {
           pt.x += party.xdir * midScale;
           pt.y += party.ydir * midScale;
         }
-        if (lowEnergy > 10) {
+        if (lowEnergy > highthresh) {
           pt.x += party.xdir * trebleScale;
           pt.y += party.ydir * trebleScale;
         }
