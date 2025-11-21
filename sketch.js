@@ -112,7 +112,7 @@ function setup() {
         highthresh = obj.val;
       }
       movescale =
-        (0.04 * bass)+ (0.04 * mid) + (0.04 * treble);
+        (0.04 * bass)/100+ (0.04 * mid)/100 + (0.04 * treble)/100;
       if (obj.type === "client_info" && obj.app === "draw") {
         numclients += 1;
         if (numclients > 25) {
