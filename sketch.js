@@ -262,8 +262,8 @@ function draw() {
       for (let pt of party.shapes) {
         // Apply scaled movement
         if (lowEnergy > lowthresh) {
-          pt.x += party.xdir * moveScale/100;
-          pt.y += party.ydir * moveScale/100;
+          pt.x += party.xdir * moveScale/10;
+          pt.y += party.ydir * moveScale/10;
         }
 
         // Boundary checks
