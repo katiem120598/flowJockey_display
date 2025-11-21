@@ -17,6 +17,9 @@ let movescale = 0.02;
 let bass = 50;
 let mid = 50;
 let treble = 50;
+let lowthresh = 5;
+let midthresh = 5;
+let highthresh = 5;
 
 // Add the button for "Begin Display"
 document.addEventListener("DOMContentLoaded", function () {
