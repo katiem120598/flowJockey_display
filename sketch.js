@@ -20,6 +20,7 @@ let treble = 50;
 let lowthresh = 5;
 let midthresh = 5;
 let highthresh = 5;
+let audio = "pre-loaded";
 
 // Add the button for "Begin Display"
 document.addEventListener("DOMContentLoaded", function () {
@@ -36,25 +37,29 @@ document.addEventListener("DOMContentLoaded", function () {
     // ------------------------------------------------------------
     userStartAudio();
 
-    mic = new p5.AudioIn();
-    mic.start(() => {
-      console.log("✔ Mic started");
-      mic.connect();     // feed mic into the audio graph
-      mic.amp(1.5);      // boost gain if needed
-
+    if (audio === "mic") {
+      mic = new p5.AudioIn();
+      mic.start(() => {
+        console.log("✔ Mic started");
+        fft = new p5.FFT(0.4, 1024);
+        fft.setInput(mic);
+        micStarted = true;
+      });
+    } else {
+      console.log("✔ Playing 757 track");
+      sound.loop();
       fft = new p5.FFT(0.4, 1024);
-      fft.setInput(mic);
-
+      fft.setInput(sound);
       micStarted = true;
-    });
+    }
   });
 });
 
-/*function preload() {
+function preload() {
   sound = loadSound(
     "https://cdn.glitch.me/a32338f3-5980-41ad-b4b3-76e5515233d6/02%20-%20757%20%5BExplicit%5D.wav?v=1714651726001"
   );
-}*/
+}
 
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
@@ -86,6 +91,27 @@ function setup() {
           xdir: (random() - 0.5) / 0.5,
           ydir: (random() - 0.5) / 0.5,
         }));
+      }
+      if(obj.type === "audioswitch"){
+        audio = obj.val;
+
+        if(micStarted){
+          if(audio==="mic"){
+            if (sound && sound.isPlaying()) {
+              sound.stop();
+            }
+            mic = new p5.AudioIn();
+            mic.start(() => {
+              fft.setInput(mic);
+            });
+          }else{
+            if(mic){
+              mic.stop();
+            }
+            sound.loop();
+            fft.setInput(sound);
+          }
+        }
       }
       if (obj.type === "playpause") {
         if(obj.val==='pressed'){
@@ -353,6 +379,16 @@ function draw() {
   }
 }
 
+
+function togglePlay(){
+  if (audio==="pre-loaded"){
+    if (sound.isPlaying()) {
+      sound.pause();
+    } else {
+      sound.loop();
+    }
+  }
+}
 /*function togglePlay() {
   if (sound.isPlaying()) {
     sound.pause();
