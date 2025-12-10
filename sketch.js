@@ -69,8 +69,9 @@ function setup() {
   const serverAddress = "wss://flowjockey-server.onrender.com";
   ws = new WebSocket(serverAddress);
   ws.onopen = function () {
-    const clientdata = { type: "client_info", app: "display" };
-    ws.send(JSON.stringify(clientdata));
+    const msg = { type: "client_info", app: "display" };
+    ws.send(JSON.stringify(msg));
+
   };
 
   ws.onmessage = async function (event) {
