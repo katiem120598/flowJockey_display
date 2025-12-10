@@ -70,7 +70,7 @@ function setup() {
   ws = new WebSocket(serverAddress);
   ws.onopen = function () {
     const clientdata = { type: "client_info", app: "display" };
-    ws.send(clientdata);
+    ws.send(JSON.stringify(clientdata));
   };
 
   ws.onmessage = function (event) {
