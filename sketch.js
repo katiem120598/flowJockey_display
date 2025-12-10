@@ -73,11 +73,18 @@ function setup() {
     ws.send(JSON.stringify(clientdata));
   };
 
-  ws.onmessage = function (event) {
-    let reader = new FileReader();
-    let obj = reader.readAsText(event.data);
-    reader.onload = function () {
-      let obj = JSON.parse(reader.result);
+  ws.onmessage = async function (event) {
+    let text;
+
+    // Blob handling (other devices)
+    if (event.data instanceof Blob) {
+        text = await event.data.text();
+    } else {
+        // widget-to-widget messages on same page come as plain strings
+        text = event.data;
+    }
+
+    const obj = JSON.parse(text);
       if (obj.type === "modeswitch") {
         mode = obj.mode;
         console.log(obj.mode);
