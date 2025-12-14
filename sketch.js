@@ -63,6 +63,7 @@ function preload() {
 
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
+  background(0);
   fft = new p5.FFT();
 
   //websocket setup
