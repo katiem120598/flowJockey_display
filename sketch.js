@@ -55,17 +55,20 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 });
 
-function preload() {
-  sound = loadSound(
-    "https://cdn.glitch.me/a32338f3-5980-41ad-b4b3-76e5515233d6/02%20-%20757%20%5BExplicit%5D.wav?v=1714651726001"
-  );
-}
-
 function setup() {
   let cnv = createCanvas(windowWidth, windowHeight);
   background(0);
   fft = new p5.FFT();
 
+  sound = loadSound(
+    "https://cdn.glitch.me/a32338f3-5980-41ad-b4b3-76e5515233d6/02%20-%20757%20%5BExplicit%5D.wav?v=1714651726001",
+    () => console.log("✔ Sound loaded"),
+    (err) => {
+      console.warn("Sound failed to load, falling back to mic:", err);
+      audio = "mic"; // optional fallback
+    }
+  );
+  
   //websocket setup
   const serverAddress = "wss://flowjockey-server.onrender.com";
   ws = new WebSocket(serverAddress);
@@ -117,7 +120,19 @@ function setup() {
             if(mic){
               mic.stop();
             }
-            sound.loop();
+            if (sound && sound.isLoaded()) {
+              sound.loop();
+            } else {
+              console.log("Sound not loaded yet — starting mic instead");
+              audio = "mic";
+              mic = new p5.AudioIn();
+              mic.start(() => {
+                fft = new p5.FFT(0.4, 1024);
+                fft.setInput(mic);
+                micStarted = true;
+              });
+              return;
+            }
             fft.setInput(sound);
           }
         }
