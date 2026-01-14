@@ -1,6 +1,7 @@
-// DISPLAY (p5.js + websockets)
+// Example adapted from https://p5js.org/reference/#/p5.FFT
 
-let sound, fft, mic;
+let sound, fft, waveform, spectrum, audioContext;
+let mic;
 let micStarted = false;
 
 let numrows = 0;
@@ -12,7 +13,6 @@ let partydata = [];
 let maxrows = 5;
 let maxcols = 5;
 let overflow = 0;
-
 let movescale = 0.02;
 let bass = 50;
 let mid = 50;
@@ -20,227 +20,213 @@ let treble = 50;
 let lowthresh = 5;
 let midthresh = 5;
 let highthresh = 5;
+let audio = "pre-loaded";
 
-// audio state
-let audio = "pre-loaded";     // "pre-loaded" or "mic" (matches your perform app)
-let startedByUser = false;    // user clicked Begin Display
-let soundReady = false;       // wav finished loading
-
-let ws;
-
-// --- UI: Begin Display button (required) ---
-document.addEventListener("DOMContentLoaded", () => {
+// Add the button for "Begin Display"
+document.addEventListener("DOMContentLoaded", function () {
   const startButton = document.createElement("button");
   startButton.id = "startButton";
   startButton.textContent = "Begin Display";
   document.body.appendChild(startButton);
 
-  startButton.addEventListener("click", () => {
+  startButton.addEventListener("click", function () {
     startButton.classList.add("hidden");
 
-    // MUST happen on user gesture for Chrome/Safari
+    // ------------------------------------------------------------
+    // *** NEW: Start microphone due to Chrome user gesture rule ***
+    // ------------------------------------------------------------
     userStartAudio();
-    startedByUser = true;
 
-    // whichever audio mode we're currently in, start it
     if (audio === "mic") {
-      startMic();
+      mic = new p5.AudioIn();
+      mic.start(() => {
+        console.log("✔ Mic started");
+        fft = new p5.FFT(0.4, 1024);
+        fft.setInput(mic);
+        micStarted = true;
+      });
     } else {
-      startSoundIfReady(); // will play immediately if loaded; otherwise will play when it finishes loading
+      console.log("✔ Playing 757 track");
+      sound.loop();
+      fft = new p5.FFT(0.4, 1024);
+      fft.setInput(sound);
+      micStarted = true;
     }
   });
 });
 
 function setup() {
-  createCanvas(windowWidth, windowHeight);
+  let cnv = createCanvas(windowWidth, windowHeight);
   background(0);
+  fft = new p5.FFT();
 
-  fft = new p5.FFT(0.4, 1024);
-
-  // Load the sound (doesn't autoplay)
   sound = loadSound(
     "https://cdn.glitch.me/a32338f3-5980-41ad-b4b3-76e5515233d6/02%20-%20757%20%5BExplicit%5D.wav?v=1714651726001",
-    () => {
-      console.log("✔ Sound loaded");
-      soundReady = true;
-
-      // If user already clicked and we're in pre-loaded mode, start now
-      if (startedByUser && audio === "pre-loaded") startSoundIfReady();
-    },
+    () => console.log("✔ Sound loaded"),
     (err) => {
       console.warn("Sound failed to load, falling back to mic:", err);
-      audio = "mic";
-      if (startedByUser) startMic();
+      audio = "mic"; // optional fallback
     }
   );
-
-  // websocket setup
+  
+  //websocket setup
   const serverAddress = "wss://flowjockey-server.onrender.com";
   ws = new WebSocket(serverAddress);
-
-  ws.onopen = () => {
+  ws.onopen = function () {
     const msg = { type: "client_info", app: "display" };
     ws.send(JSON.stringify(msg));
+
   };
 
-  ws.onmessage = async (event) => {
+  ws.onmessage = async function (event) {
     let text;
-    if (event.data instanceof Blob) text = await event.data.text();
-    else text = event.data;
+
+    // Blob handling (other devices)
+    if (event.data instanceof Blob) {
+        text = await event.data.text();
+    } else {
+        // widget-to-widget messages on same page come as plain strings
+        text = event.data;
+    }
 
     const obj = JSON.parse(text);
-
-    if (obj.type === "modeswitch") {
-      mode = obj.mode;
-      console.log("mode:", mode);
-
-      // refresh partydata positions
-      partydata = clientdata.map((client) => ({
-        shapes: client.shapes.map((shape) => ({ x: shape.x, y: shape.y })),
-        clientnum: client.clientnum,
-        xdir: (random() - 0.5) / 0.5,
-        ydir: (random() - 0.5) / 0.5,
-      }));
-    }
-
-    if (obj.type === "audioswitch") {
-      audio = obj.val; // "pre-loaded" or "mic"
-      console.log("audio:", audio);
-
-      if (!startedByUser) {
-        // can't start anything until Begin Display click
-        return;
+      if (obj.type === "modeswitch") {
+        mode = obj.mode;
+        console.log(obj.mode);
+        // Copy and reset positions for party mode
+        partydata = clientdata.map((client) => ({
+          shapes: client.shapes.map((shape) => ({
+            x: shape.x,
+            y: shape.y,
+          })),
+          clientnum: client.clientnum,
+          xdir: (random() - 0.5) / 0.5,
+          ydir: (random() - 0.5) / 0.5,
+        }));
       }
+      if(obj.type === "audioswitch"){
+        audio = obj.val;
 
-      if (audio === "mic") {
-        // stop sound, start mic
-        if (sound && sound.isPlaying()) sound.stop();
-        startMic();
-      } else {
-        // stop mic, start sound
-        stopMic();
-        startSoundIfReady();
+        if(micStarted){
+          if(audio==="mic"){
+            if (sound && sound.isPlaying()) {
+              sound.stop();
+            }
+            mic = new p5.AudioIn();
+            mic.start(() => {
+              fft.setInput(mic);
+            });
+          }else{
+            if(mic){
+              mic.stop();
+            }
+            if (sound && sound.isLoaded()) {
+              sound.loop();
+            } else {
+              console.log("Sound not loaded yet — starting mic instead");
+              audio = "mic";
+              mic = new p5.AudioIn();
+              mic.start(() => {
+                fft = new p5.FFT(0.4, 1024);
+                fft.setInput(mic);
+                micStarted = true;
+              });
+              return;
+            }
+            fft.setInput(sound);
+          }
+        }
       }
-    }
+      if (obj.type === "playpause") {
+        if(obj.val==='pressed'){
+          console.log(obj.val);
+          togglePlay();
+        }
+      }
+      if (obj.type === "bassval") {
+        bass = obj.val;
+      }
+      if (obj.type === "midval") {
+        mid = obj.val;
+      }
+      if (obj.type === "trebleval") {
+        treble = obj.val;
+      }
+      if (obj.type === "lowthreshval") {
+        lowthresh = obj.val;
+      }
+      if (obj.type === "midthreshval") {
+        midthresh = obj.val;
+      }
+      if (obj.type === "highthreshval") {
+        highthresh = obj.val;
+      }
+      movescale =
+        (0.04 * bass)/100+ (0.04 * mid)/100 + (0.04 * treble)/100;
+      if (obj.type === "client_info" && obj.app === "draw") {
+        numclients += 1;
+        if (numclients > 25) {
+          overflow += 1;
+        }
 
-    if (obj.type === "playpause" && obj.val === "pressed") {
-      togglePlay();
-    }
+        if (numcols < maxcols) {
+          numcols += 1;
+        }
+        if ((numclients - 1) % 5 == 0 && numrows < maxrows) {
+          numrows += 1;
+        }
 
-    if (obj.type === "bassval") bass = obj.val;
-    if (obj.type === "midval") mid = obj.val;
-    if (obj.type === "trebleval") treble = obj.val;
-    if (obj.type === "lowthreshval") lowthresh = obj.val;
-    if (obj.type === "midthreshval") midthresh = obj.val;
-    if (obj.type === "highthreshval") highthresh = obj.val;
+        const clientnum = { type: "clientnum", number: numclients };
+        ws.send(JSON.stringify(clientnum));
+        console.log(numclients);
+      }
+      if (obj.type === "newshape") {
+        let xdir = (random() - 0.5) / 0.5;
+        let ydir = (random() - 0.5) / 0.5;
 
-    movescale = (0.04 * bass) / 100 + (0.04 * mid) / 100 + (0.04 * treble) / 100;
-
-    if (obj.type === "client_info" && obj.app === "draw") {
-      numclients += 1;
-      if (numclients > 25) overflow += 1;
-
-      if (numcols < maxcols) numcols += 1;
-      if ((numclients - 1) % 5 === 0 && numrows < maxrows) numrows += 1;
-
-      const clientnumMsg = { type: "clientnum", number: numclients };
-      ws.send(JSON.stringify(clientnumMsg));
-      console.log("numclients:", numclients);
-    }
-
-    if (obj.type === "newshape") {
-      clientdata.push({
-        shapes: obj.points,
-        clientnum: obj.clientnum,
-        xdir: (random() - 0.5) / 0.5,
-        ydir: (random() - 0.5) / 0.5,
-        col: color(random(255), random(255), random(255)),
-      });
-
-      partydata = clientdata.map((client) => ({
-        shapes: client.shapes.map((shape) => ({
-          x: shape.x,
-          y: shape.y,
-          col: shape.col,
-        })),
-        clientnum: client.clientnum,
-        xdir: (random() - 0.5) / 0.5,
-        ydir: (random() - 0.5) / 0.5,
-      }));
-    }
+        clientdata.push({
+          shapes: obj.points,
+          clientnum: obj.clientnum,
+          xdir: xdir,
+          ydir: ydir,
+          col: color(random(255), random(255), random(255)),
+        });
+        partydata = clientdata.map((client) => ({
+          shapes: client.shapes.map((shape) => ({
+            x: shape.x,
+            y: shape.y,
+            col: shape.col,
+          })),
+          clientnum: client.clientnum,
+          xdir: (random() - 0.5) / 0.5,
+          ydir: (random() - 0.5) / 0.5,
+        }));
+      }
+    };
   };
-}
 
-function startSoundIfReady() {
-  if (!soundReady) {
-    console.log("…waiting for sound to finish loading");
-    return;
-  }
-
-  // ensure input is set before playing
-  fft.setInput(sound);
-
-  if (!sound.isPlaying()) sound.loop();
-  micStarted = true;
-  console.log("✔ sound playing");
-}
-
-function startMic() {
-  if (!mic) mic = new p5.AudioIn();
-
-  mic.start(
-    () => {
-      console.log("✔ mic started");
-      fft.setInput(mic);
-      micStarted = true;
-    },
-    (err) => {
-      console.warn("Mic failed to start:", err);
-    }
-  );
-}
-
-function stopMic() {
-  if (mic) {
-    try {
-      mic.stop();
-    } catch (e) {}
-  }
-}
-
-function togglePlay() {
-  // only meaningful in pre-loaded mode
-  if (audio !== "pre-loaded") return;
-  if (!soundReady) return;
-
-  if (sound.isPlaying()) sound.pause();
-  else sound.loop();
-}
 
 function draw() {
   background(0);
   if (!micStarted) return;
-
   let spectrum = fft.analyze();
   let waveform = fft.waveform();
   let lowEnergy = fft.getEnergy("bass");
   let midEnergy = fft.getEnergy("mid");
   let highEnergy = fft.getEnergy("treble");
 
-  let sizeFactor = map(lowEnergy, 0, 255, 0.9, 2.2 * (bass / 100));
-  let noiseFactor1 = map(midEnergy, 0, 765, 5, 60 * (mid / 100));
-  let noiseFactor2 = map(highEnergy, 0, 765, 5, 120 * (mid / 100));
-
+  let sizeFactor = map(fft.getEnergy("bass"), 0, 255, 0.9, 2.2*bass/100); // Example: scale size based on bass energy
+  let noiseFactor1 = map(midEnergy, 0, 765, 5, 60*mid/100);
+  let noiseFactor2 = map(highEnergy, 0, 765, 5, 120*mid/100);
   stroke(255);
   fill(0, 0, 0, 0);
   strokeWeight(1);
-
   if (mode === "grid") {
     for (let client of clientdata) {
       beginShape();
       const colval = (client.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((client.clientnum - overflow - 1) / maxrows);
-
+      //console.log(client.clientnum)
       for (let pt of client.shapes) {
         let angle1 = frameCount * 0.02 + pt.x * 0.1;
         let angle2 = frameCount * 0.03 + pt.x * 0.05;
@@ -253,7 +239,6 @@ function draw() {
         let scaledY =
           pt.y * sizeFactor * (windowHeight / numrows) +
           (rowval * windowHeight) / numrows;
-
         if (colval % 2 === 0 && rowval % 3 === 0) {
           let offsetX = noise(pt.x, pt.y, frameCount * 0.1) * wave1;
           let offsetY = noise(pt.y, pt.x, frameCount * 0.1);
@@ -317,42 +302,42 @@ function draw() {
       endShape();
     }
   }
-
   if (mode === "party") {
-    let moveScale = map(lowEnergy, 0, 255, 0.01, movescale);
+    let moveScale = map(lowEnergy, 0, 255, 0.01, movescale); // Dynamic movement scale based on bass energy
     for (let party of partydata) {
       beginShape();
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
 
       for (let pt of party.shapes) {
+        // Apply scaled movement
         if (lowEnergy > lowthresh) {
           pt.x += party.xdir * moveScale;
           pt.y += party.ydir * moveScale;
         }
 
+        // Boundary checks
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
       endShape();
     }
   }
-
   if (mode === "color") {
     let bassScale = map((lowEnergy * bass) / 100, 0, 255, 0.01, 0.04);
     let midScale = map((midEnergy * mid) / 100, 0, 255, 0.01, 0.04);
-    let trebleScale = map((highEnergy * treble) / 100, 0, 255, 0.01, 0.04);
-
+    let trebleScale = map((highEnergy * treble) / 100, 0, 255, 0.01, 0.04); // Dynamic movement scale based on bass energy
     for (let party of partydata) {
       const colval = (party.clientnum - overflow - 1) % maxcols;
       const rowval = Math.floor((party.clientnum - overflow - 1) / maxrows);
-
-      if (lowEnergy > lowthresh || midEnergy > midthresh || highEnergy > highthresh) {
+      if (lowEnergy > lowthresh) {
         push();
         fill(color(random(255), random(255), random(255)));
         rect(
@@ -363,27 +348,53 @@ function draw() {
         );
         pop();
       }
-
+      if (midEnergy > midthresh) {
+        push();
+        fill(color(random(255), random(255), random(255)));
+        rect(
+          (colval * windowWidth) / numcols,
+          (rowval * windowHeight) / numrows,
+          windowWidth / numcols,
+          windowHeight / numrows
+        );
+        pop();
+      }
+      if (highEnergy > highthresh) {
+        push();
+        fill(color(random(255), random(255), random(255)));
+        rect(
+          (colval * windowWidth) / numcols,
+          (rowval * windowHeight) / numrows,
+          windowWidth / numcols,
+          windowHeight / numrows
+        );
+        pop();
+      }
       beginShape();
+
       for (let pt of party.shapes) {
+        // Apply scaled movement
         if (lowEnergy > lowthresh) {
           pt.x += party.xdir * bassScale;
           pt.y += party.ydir * bassScale;
         }
-        if (midEnergy > midthresh) {
+        if (lowEnergy > midthresh) {
           pt.x += party.xdir * midScale;
           pt.y += party.ydir * midScale;
         }
-        if (highEnergy > highthresh) {
+        if (lowEnergy > highthresh) {
           pt.x += party.xdir * trebleScale;
           pt.y += party.ydir * trebleScale;
         }
 
+        // Boundary checks
         if (pt.x <= 0 || pt.x >= 1) party.xdir = -party.xdir;
         if (pt.y <= 0 || pt.y >= 1) party.ydir = -party.ydir;
 
-        let finalX = pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
-        let finalY = pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
+        let finalX =
+          pt.x * (windowWidth / numcols) + colval * (windowWidth / numcols);
+        let finalY =
+          pt.y * (windowHeight / numrows) + rowval * (windowHeight / numrows);
 
         curveVertex(finalX, finalY);
       }
@@ -391,6 +402,65 @@ function draw() {
     }
   }
 }
+
+
+function togglePlay(){
+  if (audio==="pre-loaded"){
+    if (sound.isPlaying()) {
+      sound.pause();
+    } else {
+      sound.loop();
+    }
+  }
+}
+/*function togglePlay() {
+  if (sound.isPlaying()) {
+    sound.pause();
+  } else {
+    sound.loop();
+  }
+}*/
+
+/*
+function keyPressed() {
+  if (key === "1") {
+    if (mode === "grid" || mode === "color") {
+      mode = "party";
+      // Copy and reset positions for party mode
+      partydata = clientdata.map((client) => ({
+        shapes: client.shapes.map((shape) => ({
+          x: shape.x,
+          y: shape.y,
+        })),
+        clientnum: client.clientnum,
+        xdir: (random() - 0.5) / 0.5,
+        ydir: (random() - 0.5) / 0.5,
+      }));
+    } else {
+      mode = "grid";
+    }
+    console.log("Mode switched to:", mode);
+  }
+  if (key === "2") {
+    if (mode === "grid" || mode === "party") {
+      mode = "color";
+      // Copy and reset positions for party mode
+      partydata = clientdata.map((client) => ({
+        shapes: client.shapes.map((shape) => ({
+          x: shape.x,
+          y: shape.y,
+        })),
+        clientnum: client.clientnum,
+        xdir: (random() - 0.5) / 0.5,
+        ydir: (random() - 0.5) / 0.5,
+      }));
+    } else {
+      mode = "grid";
+    }
+    console.log("Mode switched to:", mode);
+  }
+}
+*/
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
